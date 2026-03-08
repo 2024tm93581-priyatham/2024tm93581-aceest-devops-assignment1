@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ACEest Fitness and Gym</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --gold: #d4af37;
+        --bg-dark: #1a1a1a;
+        --bg-panel: #222222;
+        --text-light: #f5f5f5;
+        --text-muted: #dddddd;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+      }
+
+      .header {
+        background: linear-gradient(90deg, var(--gold), #f5e1a4);
+        color: #000;
+        padding: 24px 32px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      }
+
+      .header-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        padding: 24px 32px 40px;
+      }
+
+      .card {
+        background-color: var(--bg-panel);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .left-panel {
+        flex: 0 0 260px;
+        padding: 20px 18px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 260px;
+      }
+
+      .panel-title {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--gold);
+        margin-bottom: 16px;
+      }
+
+      label {
+        font-size: 14px;
+        margin-bottom: 6px;
+        color: var(--text-muted);
+      }
+
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background-color: #111;
+        color: var(--text-light);
+        outline: none;
+      }
+
+      select:focus {
+        border-color: var(--gold);
+        box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.4);
+      }
+
+      .btn {
+        margin-top: 12px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+        background: linear-gradient(135deg, var(--gold), #f5e1a4);
+        color: #111;
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+      }
+
+      .metrics {
+        margin-top: 20px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        white-space: pre-line;
+        color: var(--text-muted);
+      }
+
+      .right-panel {
+        flex: 1 1 480px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .section {
+        padding: 18px 20px 20px;
+      }
+
+      .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--gold);
+        margin-bottom: 10px;
+      }
+
+      .section-body {
+        font-size: 14px;
+        line-height: 1.4;
+        white-space: pre-line;
+      }
+
+      .placeholder {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-bottom: 6px;
+      }
+
+      .color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 0, 0, 0.4);
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          padding: 18px 16px 28px;
+        }
+
+        .left-panel {
+          flex: 1 1 100%;
+        }
+
+        .right-panel {
+          flex: 1 1 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <h1 class="header-title">ACEest FUNCTIONAL FITNESS</h1>
+    </header>
+
+    <main class="main">
+      <section class="card left-panel">
+        <div>
+          <div class="panel-title">Client Profile</div>
+
+          <form method="post">
+            <label for="program">Select Program</label>
+            <select id="program" name="program" required>
+              <option value="" disabled {{ "selected" if not selected_key }}>
+                Choose a profile…
+              </option>
+              {% for key, value in programs.items() %}
+              <option
+                value="{{ key }}"
+                {% if selected_key == key %}selected{% endif %}
+              >
+                {{ key }}
+              </option>
+              {% endfor %}
+            </select>
+            <button class="btn" type="submit">View Plan</button>
+          </form>
+        </div>
+
+        <div class="metrics">
+CAPACITY: {{ site_metrics.capacity }}
+AREA: {{ site_metrics.area }}
+BREAK-EVEN: {{ site_metrics.break_even }}
+        </div>
+      </section>
+
+      <section class="right-panel">
+        <article class="card section">
+          <div class="section-title">Weekly Workout Chart</div>
+          {% if selected_program %}
+          <div class="badge">
+            <span
+              class="color-dot"
+              style="background-color: {{ selected_program.color }}"
+            ></span>
+            <span>{{ selected_key }}</span>
+          </div>
+          <div class="section-body">
+            {{ selected_program.workout }}
+          </div>
+          {% else %}
+          <div class="section-body placeholder">
+            Select a profile on the left to view the weekly workout schedule.
+          </div>
+          {% endif %}
+        </article>
+
+        <article class="card section">
+          <div class="section-title">
+            Daily Nutrition Plan (Tamil Nadu Context)
+          </div>
+          {% if selected_program %}
+          <div class="section-body">
+            {{ selected_program.diet }}
+          </div>
+          {% else %}
+          <div class="section-body placeholder">
+            Select a profile to view the recommended nutrition plan.
+          </div>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
+
