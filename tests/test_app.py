@@ -51,7 +51,7 @@ def test_index_post_with_invalid_program_shows_placeholder(client):
 
 def test_save_client_api_calculates_and_stores_calories(client):
     payload = {
-        "name": "Arun",
+        "name": "Priyatham",
         "age": 28,
         "weight": 70,
         "program": "Fat Loss (FL) - 3 day",
@@ -90,7 +90,7 @@ def test_list_clients_api_returns_saved_clients(client):
     )
     client.post(
         "/api/client",
-        json={"name": "Arun", "age": 28, "weight": 70, "program": "Fat Loss (FL) - 3 day"},
+        json={"name": "Priyatham", "age": 28, "weight": 70, "program": "Fat Loss (FL) - 3 day"},
     )
 
     r = client.get("/api/clients")
@@ -98,7 +98,7 @@ def test_list_clients_api_returns_saved_clients(client):
     payload = r.get_json()
     assert payload["status"] == "ok"
     names = [c["name"] for c in payload.get("clients", [])]
-    assert "Arun" in names
+    assert "Priyatham" in names
     assert "Zara" in names
 
 
