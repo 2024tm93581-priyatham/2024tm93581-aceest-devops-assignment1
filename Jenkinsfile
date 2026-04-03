@@ -27,10 +27,21 @@ pipeline {
                         sh '. ${VENV_DIR}/bin/activate && python -m pip install --upgrade pip'
                         sh '. ${VENV_DIR}/bin/activate && pip install -r requirements.txt'
                     } else {
-                        bat 'python --version'
-                        bat 'python -m venv %VENV_DIR%'
-                        bat 'call %VENV_DIR%\\Scripts\\activate && python -m pip install --upgrade pip'
-                        bat 'call %VENV_DIR%\\Scripts\\activate && pip install -r requirements.txt'
+                        bat '''
+                            @echo off
+                            set PY_CMD=
+                            where py >nul 2>&1 && set PY_CMD=py -3
+                            if "%PY_CMD%"=="" where python >nul 2>&1 && set PY_CMD=python
+                            if "%PY_CMD%"=="" (
+                                echo ERROR: Python is not installed or not available in PATH on this Jenkins agent.
+                                exit /b 1
+                            )
+                            %PY_CMD% --version
+                            %PY_CMD% -m venv %VENV_DIR%
+                            call %VENV_DIR%\\Scripts\\activate
+                            python -m pip install --upgrade pip
+                            pip install -r requirements.txt
+                        '''
                     }
                 }
             }
