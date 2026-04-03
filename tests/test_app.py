@@ -1,6 +1,6 @@
 import pytest
 
-from app import PROGRAMS, SITE_METRICS, app, get_db_connection, init_db
+from app import CALORIE_FACTORS, PROGRAMS, SITE_METRICS, app, get_db_connection, init_db
 
 
 @pytest.fixture()
@@ -95,4 +95,40 @@ def test_save_progress_api_logs_weekly_adherence(client):
         ).fetchone()
     assert row is not None
     assert row["adherence"] == 87
+
+
+def test_calorie_factors_match_program_keys():
+    assert set(CALORIE_FACTORS.keys()) == set(PROGRAMS.keys())
+
+
+def test_get_progress_api_empty_series(client):
+    response = client.get("/api/client/NonexistentClient/progress")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "ok"
+    assert data["client_name"] == "NonexistentClient"
+    assert data["series"] == []
+
+
+def test_get_progress_api_returns_ordered_series(client):
+    client.post(
+        "/api/client",
+        json={
+            "name": "ChartUser",
+            "age": 31,
+            "weight": 72,
+            "program": "Fat Loss (FL)",
+        },
+    )
+    client.post("/api/progress", json={"client_name": "ChartUser", "adherence": 40})
+    client.post("/api/progress", json={"client_name": "ChartUser", "adherence": 88})
+
+    response = client.get("/api/client/ChartUser/progress")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["status"] == "ok"
+    assert len(data["series"]) == 2
+    assert data["series"][0]["adherence"] == 40
+    assert data["series"][1]["adherence"] == 88
+    assert all("week" in p for p in data["series"])
 
