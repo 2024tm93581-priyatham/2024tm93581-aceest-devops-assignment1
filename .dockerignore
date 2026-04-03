@@ -10,4 +10,6 @@ venv/
 dist/
 build/
 *.log
+aceest_fitness.db
+*.db
 
