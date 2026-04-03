@@ -53,8 +53,55 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
 
+      .inp {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background-color: #111;
+        color: var(--text-light);
+        outline: none;
+      }
+
+      .info-card {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--text-muted);
+      }
+
+      .info-card strong {
+        color: var(--text-light);
+      }
+
+      .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .header-auth {
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .btn-inline {
+        margin-top: 0 !important;
+        width: auto !important;
+        padding: 8px 16px !important;
+      }
+
       .left-panel {
-        flex: 0 0 260px;
+        flex: 0 0 300px;
         padding: 20px 18px 24px;
         display: flex;
         flex-direction: column;
@@ -188,11 +235,86 @@
           flex: 1 1 100%;
         }
       }
+
+      .modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal-panel {
+        background: var(--bg-panel);
+        border-radius: 12px;
+        padding: 18px 20px 22px;
+        max-width: 560px;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      }
+
+      .chart-wrap {
+        position: relative;
+        width: 100%;
+        height: 260px; /* critical: Chart.js needs a real height */
+      }
+
+      #adherence-chart-canvas {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+
+      .modal-close {
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .modal-close:hover {
+        color: var(--text-light);
+      }
     </style>
   </head>
   <body>
     <header class="header">
-      <h1 class="header-title">ACEest FUNCTIONAL FITNESS</h1>
+      <div class="header-row">
+        <h1 class="header-title">ACEest FUNCTIONAL FITNESS</h1>
+        <div class="header-auth">
+          <span id="auth-label">Not signed in</span>
+          <button type="button" class="btn btn-inline" id="header-logout-btn" style="display: none;">
+            Logout
+          </button>
+        </div>
+      </div>
     </header>
 
     <main class="main">
@@ -200,23 +322,167 @@
         <div>
           <div class="panel-title">Client Profile</div>
 
-          <form method="post">
+          <form id="view-form" method="post">
             <label for="program">Select Program</label>
             <select id="program" name="program" required>
               <option value="" disabled {{ "selected" if not selected_key }}>
                 Choose a profile…
               </option>
               {% for key, value in programs.items() %}
-              <option
-                value="{{ key }}"
-                {% if selected_key == key %}selected{% endif %}
-              >
+              <option value="{{ key }}" {% if selected_key == key %}selected{% endif %}>
                 {{ key }}
               </option>
               {% endfor %}
             </select>
             <button class="btn" type="submit">View Plan</button>
           </form>
+
+          <div style="margin-top: 18px;" id="staff-auth-section">
+            <div class="panel-title" id="staff-auth-title" style="margin-bottom: 10px;">Staff login</div>
+            <div id="staff-login-form">
+              <label for="auth-username">Username</label>
+              <input class="inp" id="auth-username" type="text" autocomplete="username" placeholder="admin" />
+              <label for="auth-password" style="margin-top: 10px;">Password</label>
+              <input class="inp" id="auth-password" type="password" autocomplete="current-password" placeholder="password" />
+              <button class="btn" type="button" id="login-btn" style="margin-top: 10px;">Login</button>
+              <p class="section-body placeholder" style="margin-top: 8px; font-size: 12px;">
+                Default: <strong>admin</strong> / <strong>admin</strong> (change in production).
+              </p>
+            </div>
+            <div id="staff-session-panel" style="display: none;">
+              <p class="section-body" id="staff-session-info" style="margin: 0 0 10px; font-size: 13px; line-height: 1.4;"></p>
+              <button class="btn" type="button" id="sidebar-logout-btn">Logout</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 18px;">
+            <div class="panel-title" style="margin-bottom: 10px;">Client Management</div>
+            <p class="section-body placeholder" style="margin: 0 0 12px; font-size: 12px; line-height: 1.4;">
+              Type the <strong>client name</strong> in the first field below, then use
+              <strong>Save Client</strong> or <strong>Load Client</strong>. That same name is used for
+              membership, progress, and PDF.
+            </p>
+
+            <label for="client-picker">Available clients</label>
+            <select id="client-picker" style="margin-top: 0;">
+              <option value="">Loading…</option>
+            </select>
+
+            <label for="client-name">Client name</label>
+            <input
+              class="inp"
+              id="client-name"
+              type="text"
+              name="client_name"
+              autocomplete="name"
+              placeholder="e.g., Priyatham"
+              aria-describedby="membership-card-hint"
+            />
+
+            <label for="client-age" style="margin-top: 12px;">Age</label>
+            <input class="inp" id="client-age" type="number" min="1" placeholder="e.g., 25" />
+
+            <label for="client-height" style="margin-top: 12px;">Height (cm)</label>
+            <input class="inp" id="client-height" type="number" step="0.1" min="1" placeholder="e.g., 175" />
+
+            <label for="client-weight" style="margin-top: 12px;">Weight (kg)</label>
+            <input class="inp" id="client-weight" type="number" step="0.1" min="1" placeholder="e.g., 70" />
+
+            <label for="client-program" style="margin-top: 12px;">Program (plan)</label>
+            <select id="client-program" style="margin-top: 0;">
+              {% for key, value in programs.items() %}
+              <option value="{{ key }}">{{ key }}</option>
+              {% endfor %}
+            </select>
+
+            <label for="client-target-weight" style="margin-top: 12px;">Target weight (kg)</label>
+            <input class="inp" id="client-target-weight" type="number" step="0.1" min="0" placeholder="optional" />
+
+            <label for="client-target-adherence" style="margin-top: 12px;">Target adherence %</label>
+            <input class="inp" id="client-target-adherence" type="number" min="0" max="100" placeholder="optional" />
+
+            <label for="client-membership-status" style="margin-top: 12px;">Membership status</label>
+            <select id="client-membership-status" style="margin-top: 0;">
+              <option value="Active">Active</option>
+              <option value="Expired">Expired</option>
+              <option value="Paused">Paused</option>
+              <option value="Pending">Pending</option>
+            </select>
+
+            <label for="client-membership-end" style="margin-top: 12px;">Renewal / end date</label>
+            <input class="inp" id="client-membership-end" type="date" />
+
+            <button
+              class="btn"
+              type="button"
+              id="save-client-btn"
+              style="margin-top: 12px;"
+            >
+              Save Client
+            </button>
+
+            <button
+              class="btn"
+              type="button"
+              id="load-client-btn"
+              style="margin-top: 10px; background: linear-gradient(135deg, #7f8c8d, #cfd6d6);"
+            >
+              Load Client
+            </button>
+
+            <div class="info-card" id="membership-card">
+              <div class="panel-title" style="margin-bottom: 8px; font-size: 12px;">Membership (current client)</div>
+              <p id="membership-card-hint" class="placeholder" style="margin: 0 0 8px; font-size: 11px;">
+                Uses the <strong>Client name</strong> field at the top of Client Management.
+              </p>
+              <div id="membership-display">
+                Enter a client name above, then click <strong>Load Client</strong> or <strong>Save Client</strong>.
+              </div>
+            </div>
+
+            <div class="panel-title" style="margin-top: 16px; margin-bottom: 8px;">Reports &amp; tools</div>
+            <button class="btn" type="button" id="quick-add-btn" style="background: linear-gradient(135deg, #16a085, #1abc9c);">
+              Quick add client (name only)
+            </button>
+            <button class="btn" type="button" id="generate-program-btn" style="margin-top: 8px; background: linear-gradient(135deg, #8e44ad, #9b59b6);">
+              Generate AI program
+            </button>
+            <button class="btn" type="button" id="download-pdf-btn" style="margin-top: 8px; background: linear-gradient(135deg, #c0392b, #e74c3c);">
+              Download PDF report
+            </button>
+            <button class="btn" type="button" id="refresh-membership-btn" style="margin-top: 8px; background: linear-gradient(135deg, #34495e, #2c3e50);">
+              Refresh membership
+            </button>
+
+            <div style="margin-top: 14px;">
+              <div class="panel-title" style="margin-bottom: 10px;">Weekly Adherence</div>
+
+              <label for="adherence">Adherence %: <span id="adherence-value">0</span></label>
+              <input id="adherence" type="range" min="0" max="100" value="0" style="width: 100%;" />
+
+              <button
+                class="btn"
+                type="button"
+                id="save-progress-btn"
+                style="margin-top: 12px;"
+              >
+                Save Progress
+              </button>
+
+              <button
+                class="btn"
+                type="button"
+                id="view-progress-chart-btn"
+                style="margin-top: 10px; background: linear-gradient(135deg, #2980b9, #3498db);"
+              >
+                View Progress Chart
+              </button>
+            </div>
+
+            <div class="section-body placeholder" id="ui-status" style="margin-top: 14px;">
+              Enter client details and use Save/Load actions.
+            </div>
+          </div>
         </div>
 
         <div class="metrics">
@@ -248,8 +514,15 @@ BREAK-EVEN: {{ site_metrics.break_even }}
         </article>
 
         <article class="card section">
+          <div class="section-title">Client snapshot</div>
+          <div class="section-body" id="client-snapshot">
+            <span class="placeholder">Load a client on the left to see membership, program, and PDF actions there.</span>
+          </div>
+        </article>
+
+        <article class="card section">
           <div class="section-title">
-            Daily Nutrition Plan (Tamil Nadu Context)
+            Daily Nutrition Plan (TN Context)
           </div>
           {% if selected_program %}
           <div class="section-body">
@@ -263,6 +536,511 @@ BREAK-EVEN: {{ site_metrics.break_even }}
         </article>
       </section>
     </main>
+
+    <div id="chart-modal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-labelledby="chart-modal-title">
+        <div class="modal-header">
+          <h2 id="chart-modal-title">Weekly Adherence Progress</h2>
+          <button type="button" id="chart-modal-close" class="modal-close" aria-label="Close">
+            &times;
+          </button>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="adherence-chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
   </body>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const fetchCred = { credentials: "same-origin" };
+
+    const setStatus = (text) => {
+      const el = document.getElementById("ui-status");
+      if (el) el.textContent = text;
+    };
+
+    const getClientForm = () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      const ageRaw = document.getElementById("client-age")?.value;
+      const heightRaw = document.getElementById("client-height")?.value;
+      const weightRaw = document.getElementById("client-weight")?.value;
+      const twRaw = document.getElementById("client-target-weight")?.value;
+      const taRaw = document.getElementById("client-target-adherence")?.value;
+      const program = (document.getElementById("client-program")?.value || "").trim();
+      const membership_status = (document.getElementById("client-membership-status")?.value || "Active").trim();
+      const membership_end = (document.getElementById("client-membership-end")?.value || "").trim();
+      const age = ageRaw === "" ? 0 : Number(ageRaw);
+      const height = heightRaw === "" ? 0 : Number(heightRaw);
+      const weight = weightRaw === "" ? 0 : Number(weightRaw);
+      const target_weight = twRaw === "" ? 0 : Number(twRaw);
+      const target_adherence = taRaw === "" ? 0 : Number(taRaw);
+      return {
+        name,
+        age,
+        height,
+        weight,
+        program,
+        target_weight,
+        target_adherence,
+        membership_status,
+        membership_end,
+      };
+    };
+
+    const renderMembershipCard = (status, end, note) => {
+      const el = document.getElementById("membership-display");
+      if (!el) return;
+      const endLine = end && String(end).trim() ? end : "N/A";
+      const s = status && String(status).trim() ? status : "—";
+      el.innerHTML =
+        `<strong>Status:</strong> ${s}<br/>` +
+        `<strong>Renewal / end:</strong> ${endLine}` +
+        (note ? `<br/><span class="placeholder">${note}</span>` : "");
+    };
+
+    const renderClientSnapshot = (client) => {
+      const el = document.getElementById("client-snapshot");
+      if (!el || !client || !client.name) {
+        if (el) el.innerHTML = '<span class="placeholder">Load a client on the left.</span>';
+        return;
+      }
+      const pdfUrl = `/api/client/${encodeURIComponent(client.name)}/report.pdf`;
+      el.innerHTML =
+        `<strong>Name:</strong> ${client.name}<br/>` +
+        `<strong>Program:</strong> ${client.program ?? "—"}<br/>` +
+        `<strong>Calories (est.):</strong> ${client.calories ?? "—"}<br/>` +
+        `<strong>Membership:</strong> ${client.membership_status ?? "—"}<br/>` +
+        `<strong>Renewal / end:</strong> ${client.membership_end && String(client.membership_end).trim() ? client.membership_end : "N/A"}<br/>` +
+        `<br/><a href="${pdfUrl}" target="_blank" rel="noopener" style="color: var(--gold); font-weight: 700;">Open PDF report</a> (same tab: use left panel Download)`;
+    };
+
+    const refreshAuthUI = async () => {
+      const authLabel = document.getElementById("auth-label");
+      const headerLogout = document.getElementById("header-logout-btn");
+      const loginForm = document.getElementById("staff-login-form");
+      const sessionPanel = document.getElementById("staff-session-panel");
+      const staffTitle = document.getElementById("staff-auth-title");
+      const staffSessionInfo = document.getElementById("staff-session-info");
+      const pwdInput = document.getElementById("auth-password");
+      const r = await fetch("/api/auth/me", { method: "GET", ...fetchCred });
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}));
+        const u = d.user?.username;
+        const role = d.user?.role;
+        if (authLabel) authLabel.textContent = `Signed in as ${u} (${role})`;
+        if (headerLogout) headerLogout.style.display = "inline-block";
+        if (loginForm) loginForm.style.display = "none";
+        if (sessionPanel) sessionPanel.style.display = "block";
+        if (staffTitle) staffTitle.textContent = "Staff session";
+        if (staffSessionInfo) {
+          staffSessionInfo.textContent = `You are signed in as ${u} (${role}). Use Logout to sign out.`;
+        }
+        if (pwdInput) pwdInput.value = "";
+      } else {
+        if (authLabel) authLabel.textContent = "Not signed in";
+        if (headerLogout) headerLogout.style.display = "none";
+        if (loginForm) loginForm.style.display = "block";
+        if (sessionPanel) sessionPanel.style.display = "none";
+        if (staffTitle) staffTitle.textContent = "Staff login";
+        if (staffSessionInfo) staffSessionInfo.textContent = "";
+      }
+    };
+
+    const refreshClientPicker = async () => {
+      const picker = document.getElementById("client-picker");
+      if (!picker) return;
+
+      const previous = picker.value;
+      picker.innerHTML = '<option value="">Select a client…</option>';
+
+      const r = await fetch("/api/clients", { method: "GET", ...fetchCred });
+      if (!r.ok) {
+        const o = document.createElement("option");
+        o.value = "";
+        o.textContent = "Unable to load clients";
+        picker.appendChild(o);
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      const clients = Array.isArray(d.clients) ? d.clients : [];
+
+      if (!clients.length) {
+        const o = document.createElement("option");
+        o.value = "";
+        o.textContent = "No saved clients yet";
+        picker.appendChild(o);
+        return;
+      }
+
+      for (const c of clients) {
+        if (!c?.name) continue;
+        const o = document.createElement("option");
+        o.value = c.name;
+        const suffix = c.program ? ` — ${c.program}` : "";
+        o.textContent = `${c.name}${suffix}`;
+        picker.appendChild(o);
+      }
+
+      if (previous) picker.value = previous;
+    };
+
+    const loadClientByName = async (name) => {
+      const n = (name || "").trim();
+      if (!n) return setStatus("Enter a name to load the client.");
+
+      const nameInput = document.getElementById("client-name");
+      if (nameInput) nameInput.value = n;
+
+      setStatus("Loading client...");
+      const res = await fetch(`/api/client/${encodeURIComponent(n)}`, {
+        method: "GET",
+        ...fetchCred,
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Client not found.");
+      }
+
+      const client = payload.client || {};
+      document.getElementById("client-age").value = client.age ?? "";
+      document.getElementById("client-height").value = client.height ?? "";
+      document.getElementById("client-weight").value = client.weight ?? "";
+      document.getElementById("client-target-weight").value = client.target_weight ?? "";
+      document.getElementById("client-target-adherence").value = client.target_adherence ?? "";
+      const ms = document.getElementById("client-membership-status");
+      if (ms) ms.value = client.membership_status || "Active";
+      const me = document.getElementById("client-membership-end");
+      if (me) me.value = client.membership_end || "";
+
+      const progSel = document.getElementById("client-program");
+      if (progSel && client.program) {
+        const opt = Array.from(progSel.options).find((o) => o.value === client.program);
+        if (opt) progSel.value = client.program;
+        else {
+          const o = document.createElement("option");
+          o.value = client.program;
+          o.textContent = client.program;
+          progSel.appendChild(o);
+          progSel.value = client.program;
+        }
+      }
+
+      const planSelect = document.getElementById("program");
+      const viewForm = document.getElementById("view-form");
+      if (planSelect && viewForm && client.program) {
+        const opt = Array.from(planSelect.options).find((o) => o.value === client.program);
+        if (opt) {
+          planSelect.value = client.program;
+          viewForm.submit();
+        }
+      }
+
+      renderMembershipCard(client.membership_status, client.membership_end);
+      renderClientSnapshot(client);
+      setStatus(`Client loaded. Calories/day: ${client.calories ?? "—"}`);
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      refreshAuthUI();
+      refreshClientPicker();
+    });
+
+    document.getElementById("login-btn")?.addEventListener("click", async () => {
+      const username = (document.getElementById("auth-username")?.value || "").trim();
+      const password = (document.getElementById("auth-password")?.value || "").trim();
+      if (!username || !password) return setStatus("Enter username and password to log in.");
+      setStatus("Signing in...");
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...fetchCred,
+        body: JSON.stringify({ username, password }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return setStatus(payload?.message || "Login failed.");
+      }
+      await refreshAuthUI();
+      setStatus(`Welcome, ${payload.user?.username} (${payload.user?.role}).`);
+    });
+
+    const doLogout = async () => {
+      await fetch("/api/auth/logout", { method: "POST", ...fetchCred });
+      await refreshAuthUI();
+      setStatus("Logged out.");
+    };
+
+    document.getElementById("header-logout-btn")?.addEventListener("click", doLogout);
+    document.getElementById("sidebar-logout-btn")?.addEventListener("click", doLogout);
+
+    document.getElementById("adherence")?.addEventListener("input", (e) => {
+      const val = document.getElementById("adherence-value");
+      if (val) val.textContent = String(e.target.value);
+    });
+
+    document.getElementById("save-client-btn")?.addEventListener("click", async () => {
+      const f = getClientForm();
+      if (!f.name) return setStatus("Name is required to save a client.");
+      if (!f.program) return setStatus("Program is required to save a client.");
+
+      setStatus("Saving client...");
+      const body = {
+        name: f.name,
+        age: f.age,
+        height: f.height,
+        weight: f.weight,
+        program: f.program,
+        target_weight: f.target_weight,
+        target_adherence: f.target_adherence,
+        membership_status: f.membership_status,
+        membership_end: f.membership_end || undefined,
+      };
+      const res = await fetch("/api/client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...fetchCred,
+        body: JSON.stringify(body),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Failed to save client.");
+      }
+
+      const c = payload.client || {};
+      const calories = c.calories;
+      renderMembershipCard(c.membership_status, c.membership_end);
+      renderClientSnapshot(c);
+      setStatus(`Client saved. Calories/day: ${calories ?? "—"}`);
+      await refreshClientPicker();
+      const picker = document.getElementById("client-picker");
+      if (picker && c.name) picker.value = c.name;
+    });
+
+    document.getElementById("load-client-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      await loadClientByName(name);
+      const picker = document.getElementById("client-picker");
+      if (picker && name) picker.value = name;
+    });
+
+    document.getElementById("client-picker")?.addEventListener("change", async (e) => {
+      const name = (e.target?.value || "").trim();
+      if (!name) return;
+      await loadClientByName(name);
+    });
+
+    document.getElementById("save-progress-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      const adherence = Number(document.getElementById("adherence")?.value || 0);
+      if (!name) return setStatus("Name is required to save progress.");
+
+      setStatus("Saving progress...");
+      const res = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...fetchCred,
+        body: JSON.stringify({ client_name: name, adherence }),
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Failed to save progress.");
+      }
+
+      setStatus(`Progress saved for ${payload.progress.week}.`);
+    });
+
+    document.getElementById("quick-add-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      if (!name) return setStatus("Enter a client name first for quick add.");
+      setStatus("Creating minimal client...");
+      const res = await fetch("/api/client/bootstrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        ...fetchCred,
+        body: JSON.stringify({ name }),
+      });
+      const p = await res.json().catch(() => ({}));
+      if (!res.ok) return setStatus(p?.message || "Quick add failed.");
+      await fetchMembershipForDisplay(name);
+      setStatus(`Quick add: ${name} (Active).`);
+      await refreshClientPicker();
+      const picker = document.getElementById("client-picker");
+      if (picker) picker.value = name;
+    });
+
+    document.getElementById("generate-program-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      if (!name) return setStatus("Enter client name first.");
+      setStatus("Generating program...");
+      const res = await fetch(`/api/client/${encodeURIComponent(name)}/generate-program`, {
+        method: "POST",
+        ...fetchCred,
+      });
+      const p = await res.json().catch(() => ({}));
+      if (!res.ok) return setStatus(p?.message || "Generate failed.");
+      const res2 = await fetch(`/api/client/${encodeURIComponent(name)}`, {
+        method: "GET",
+        ...fetchCred,
+      });
+      const payload2 = await res2.json().catch(() => ({}));
+      if (res2.ok && payload2.status === "ok") {
+        const client = payload2.client || {};
+        const progSel = document.getElementById("client-program");
+        if (progSel && client.program) {
+          let opt = Array.from(progSel.options).find((o) => o.value === client.program);
+          if (!opt) {
+            opt = document.createElement("option");
+            opt.value = client.program;
+            opt.textContent = client.program;
+            progSel.appendChild(opt);
+          }
+          progSel.value = client.program;
+        }
+        renderMembershipCard(client.membership_status, client.membership_end);
+        renderClientSnapshot(client);
+      }
+      setStatus(`AI program: ${p.program} (${p.program_type}).`);
+    });
+
+    document.getElementById("download-pdf-btn")?.addEventListener("click", () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      if (!name) return setStatus("Enter client name first.");
+      window.open(`/api/client/${encodeURIComponent(name)}/report.pdf`, "_blank", "noopener");
+      setStatus("PDF download started.");
+    });
+
+    const fetchMembershipForDisplay = async (name) => {
+      if (!name) {
+        renderMembershipCard(
+          "—",
+          null,
+          "Fill the Client name field at the top of Client Management, then click Load or Save."
+        );
+        return;
+      }
+      const r = await fetch(`/api/client/${encodeURIComponent(name)}/membership`, {
+        method: "GET",
+        ...fetchCred,
+      });
+      const p = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        renderMembershipCard("—", null, p.message || "Membership not found.");
+        return;
+      }
+      renderMembershipCard(p.membership_status, p.membership_end);
+    };
+
+    document.getElementById("refresh-membership-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      setStatus("Refreshing membership...");
+      await fetchMembershipForDisplay(name);
+      setStatus("Membership refreshed.");
+    });
+
+    let adherenceChart = null;
+
+    const closeChartModal = () => {
+      const modal = document.getElementById("chart-modal");
+      if (modal) {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+    };
+
+    document.getElementById("chart-modal-close")?.addEventListener("click", closeChartModal);
+    document.getElementById("chart-modal")?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "chart-modal") closeChartModal();
+    });
+
+    document.getElementById("view-progress-chart-btn")?.addEventListener("click", async () => {
+      try {
+        const name = (document.getElementById("client-name")?.value || "").trim();
+        if (!name) {
+          return setStatus("Enter client name first to view the progress chart.");
+        }
+
+        setStatus("Loading progress chart...");
+        const res = await fetch(`/api/client/${encodeURIComponent(name)}/progress`, {
+          method: "GET",
+          ...fetchCred,
+        });
+        const payload = await res.json().catch(() => ({}));
+
+        if (!res.ok || payload.status !== "ok") {
+          return setStatus(payload?.message || "Could not load progress data.");
+        }
+
+        const series = payload.series || [];
+        if (series.length === 0) {
+          return setStatus("No progress data available for this client.");
+        }
+
+        const title = document.getElementById("chart-modal-title");
+        if (title) title.textContent = `Weekly Adherence Progress – ${name}`;
+
+        const modal = document.getElementById("chart-modal");
+        if (modal) {
+          modal.classList.add("open");
+          modal.setAttribute("aria-hidden", "false");
+        }
+
+        const canvas = document.getElementById("adherence-chart-canvas");
+        if (!canvas || typeof Chart === "undefined") {
+          return setStatus("Chart library failed to load.");
+        }
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return setStatus("Chart canvas is not available.");
+        if (adherenceChart) adherenceChart.destroy();
+
+        adherenceChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: series.map((s) => s.week),
+          datasets: [
+            {
+              label: "Adherence (%)",
+              data: series.map((s) => s.adherence),
+              borderColor: "#d4af37",
+              backgroundColor: "rgba(212, 175, 55, 0.15)",
+              tension: 0.25,
+              fill: true,
+              pointRadius: 4,
+              pointBackgroundColor: "#d4af37",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              ticks: { color: "#dddddd" },
+              grid: { color: "rgba(255,255,255,0.08)" },
+            },
+            x: {
+              ticks: { color: "#dddddd", maxRotation: 45, minRotation: 45 },
+              grid: { color: "rgba(255,255,255,0.06)" },
+            },
+          },
+          plugins: {
+            legend: { labels: { color: "#f5f5f5" } },
+          },
+        },
+      });
+        setStatus("Progress chart ready.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Chart failed to render. Check console for details.");
+      }
+    });
+  </script>
 </html>
 

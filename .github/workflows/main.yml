@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build & Lint (compile syntax)
+        run: |
+          python -m compileall -q .
+
+      - name: Docker Image Assembly
+        run: |
+          docker build -t aceest-fitness-app:${{ github.sha }} .
+
+      - name: Automated Testing (pytest inside container)
+        run: |
+          docker run --rm -w /app aceest-fitness-app:${{ github.sha }} python -m pytest -q
+
