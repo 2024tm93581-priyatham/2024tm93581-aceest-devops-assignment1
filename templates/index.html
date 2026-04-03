@@ -200,23 +200,96 @@
         <div>
           <div class="panel-title">Client Profile</div>
 
-          <form method="post">
+          <form id="view-form" method="post">
             <label for="program">Select Program</label>
             <select id="program" name="program" required>
               <option value="" disabled {{ "selected" if not selected_key }}>
                 Choose a profile…
               </option>
               {% for key, value in programs.items() %}
-              <option
-                value="{{ key }}"
-                {% if selected_key == key %}selected{% endif %}
-              >
+              <option value="{{ key }}" {% if selected_key == key %}selected{% endif %}>
                 {{ key }}
               </option>
               {% endfor %}
             </select>
             <button class="btn" type="submit">View Plan</button>
           </form>
+
+          <div style="margin-top: 18px;">
+            <div class="panel-title" style="margin-bottom: 10px;">Client Management</div>
+
+            <label for="client-name">Name</label>
+            <input
+              id="client-name"
+              type="text"
+              placeholder="e.g., Arun"
+              style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background-color: #111; color: var(--text-light); outline: none;"
+            />
+
+            <label for="client-age" style="margin-top: 12px;">Age</label>
+            <input
+              id="client-age"
+              type="number"
+              min="1"
+              placeholder="e.g., 25"
+              style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background-color: #111; color: var(--text-light); outline: none;"
+            />
+
+            <label for="client-weight" style="margin-top: 12px;">Weight (kg)</label>
+            <input
+              id="client-weight"
+              type="number"
+              step="0.1"
+              min="1"
+              placeholder="e.g., 70"
+              style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background-color: #111; color: var(--text-light); outline: none;"
+            />
+
+            <label for="client-program" style="margin-top: 12px;">Program</label>
+            <select id="client-program" style="margin-top: 0;">
+              {% for key, value in programs.items() %}
+              <option value="{{ key }}">{{ key }}</option>
+              {% endfor %}
+            </select>
+
+            <button
+              class="btn"
+              type="button"
+              id="save-client-btn"
+              style="margin-top: 12px;"
+            >
+              Save Client
+            </button>
+
+            <button
+              class="btn"
+              type="button"
+              id="load-client-btn"
+              style="margin-top: 10px; background: linear-gradient(135deg, #7f8c8d, #cfd6d6);"
+            >
+              Load Client
+            </button>
+
+            <div style="margin-top: 14px;">
+              <div class="panel-title" style="margin-bottom: 10px;">Weekly Adherence</div>
+
+              <label for="adherence">Adherence %: <span id="adherence-value">0</span></label>
+              <input id="adherence" type="range" min="0" max="100" value="0" style="width: 100%;" />
+
+              <button
+                class="btn"
+                type="button"
+                id="save-progress-btn"
+                style="margin-top: 12px;"
+              >
+                Save Progress
+              </button>
+            </div>
+
+            <div class="section-body placeholder" id="ui-status" style="margin-top: 14px;">
+              Enter client details and use Save/Load actions.
+            </div>
+          </div>
         </div>
 
         <div class="metrics">
@@ -264,5 +337,96 @@ BREAK-EVEN: {{ site_metrics.break_even }}
       </section>
     </main>
   </body>
+
+  <script>
+    const setStatus = (text) => {
+      const el = document.getElementById("ui-status");
+      if (el) el.textContent = text;
+    };
+
+    const getClientForm = () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      const ageRaw = document.getElementById("client-age")?.value;
+      const weightRaw = document.getElementById("client-weight")?.value;
+      const program = (document.getElementById("client-program")?.value || "").trim();
+      const age = ageRaw === "" ? 0 : Number(ageRaw);
+      const weight = weightRaw === "" ? 0 : Number(weightRaw);
+      return { name, age, weight, program };
+    };
+
+    document.getElementById("adherence")?.addEventListener("input", (e) => {
+      const val = document.getElementById("adherence-value");
+      if (val) val.textContent = String(e.target.value);
+    });
+
+    document.getElementById("save-client-btn")?.addEventListener("click", async () => {
+      const { name, age, weight, program } = getClientForm();
+      if (!name) return setStatus("Name is required to save a client.");
+      if (!program) return setStatus("Program is required to save a client.");
+
+      setStatus("Saving client...");
+      const res = await fetch("/api/client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, age, weight, program })
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Failed to save client.");
+      }
+
+      const calories = payload?.client?.calories;
+      setStatus(`Client saved. Calories/day: ${calories}`);
+    });
+
+    document.getElementById("load-client-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      if (!name) return setStatus("Enter a name to load the client.");
+
+      setStatus("Loading client...");
+      const res = await fetch(`/api/client/${encodeURIComponent(name)}`, { method: "GET" });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Client not found.");
+      }
+
+      const client = payload.client || {};
+      document.getElementById("client-age").value = client.age ?? "";
+      document.getElementById("client-weight").value = client.weight ?? "";
+      document.getElementById("client-program").value = client.program ?? "";
+
+      // Also update the program plan view and refresh the plan server-side.
+      const planSelect = document.getElementById("program");
+      const viewForm = document.getElementById("view-form");
+      if (planSelect && viewForm && client.program) {
+        planSelect.value = client.program;
+        viewForm.submit();
+      }
+
+      setStatus(`Client loaded. Calories/day: ${client.calories ?? ""}`);
+    });
+
+    document.getElementById("save-progress-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      const adherence = Number(document.getElementById("adherence")?.value || 0);
+      if (!name) return setStatus("Name is required to save progress.");
+
+      setStatus("Saving progress...");
+      const res = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_name: name, adherence })
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Failed to save progress.");
+      }
+
+      setStatus(`Progress saved for ${payload.progress.week}.`);
+    });
+  </script>
 </html>
 

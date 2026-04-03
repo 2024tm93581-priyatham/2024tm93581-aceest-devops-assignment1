@@ -1,6 +1,10 @@
-from flask import Flask, render_template, request
+import sqlite3
+from datetime import datetime
+
+from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
+app.config["DATABASE"] = "aceest_fitness.db"
 
 
 # Core program specification reused from the Tkinter version
@@ -59,6 +63,40 @@ SITE_METRICS = {
 }
 
 
+def get_db_connection():
+    conn = sqlite3.connect(app.config["DATABASE"])
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS clients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                age INTEGER,
+                weight REAL,
+                program TEXT,
+                calories INTEGER
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_name TEXT,
+                week TEXT,
+                adherence INTEGER
+            )
+            """
+        )
+        conn.commit()
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     """
@@ -83,6 +121,104 @@ def index():
         selected_program=selected_program,
         site_metrics=SITE_METRICS,
     )
+
+
+@app.route("/api/client", methods=["POST"])
+def save_client():
+    data = request.get_json(silent=True) or request.form
+
+    name = (data.get("name") or "").strip()
+    age = int(data.get("age", 0))
+    weight = float(data.get("weight", 0))
+    program = (data.get("program") or "").strip()
+
+    if not name or program not in PROGRAMS:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Valid name and program are required.",
+                }
+            ),
+            400,
+        )
+
+    factors = {"Fat Loss (FL)": 22, "Muscle Gain (MG)": 35, "Beginner (BG)": 26}
+    calories = int(weight * factors[program])
+
+    with get_db_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO clients (name, age, weight, program, calories)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+                age=excluded.age,
+                weight=excluded.weight,
+                program=excluded.program,
+                calories=excluded.calories
+            """,
+            (name, age, weight, program, calories),
+        )
+        conn.commit()
+
+    return jsonify(
+        {
+            "status": "ok",
+            "client": {
+                "name": name,
+                "age": age,
+                "weight": weight,
+                "program": program,
+                "calories": calories,
+            },
+        }
+    )
+
+
+@app.route("/api/client/<name>", methods=["GET"])
+def load_client(name):
+    with get_db_connection() as conn:
+        row = conn.execute(
+            "SELECT name, age, weight, program, calories FROM clients WHERE name=?",
+            (name,),
+        ).fetchone()
+
+    if not row:
+        return jsonify({"status": "error", "message": "Client not found."}), 404
+
+    return jsonify({"status": "ok", "client": dict(row)})
+
+
+@app.route("/api/progress", methods=["POST"])
+def save_progress():
+    data = request.get_json(silent=True) or request.form
+    client_name = (data.get("client_name") or "").strip()
+    adherence = int(data.get("adherence", 0))
+
+    if not client_name:
+        return jsonify({"status": "error", "message": "client_name is required."}), 400
+
+    week = datetime.now().strftime("Week %U - %Y")
+    with get_db_connection() as conn:
+        conn.execute(
+            "INSERT INTO progress (client_name, week, adherence) VALUES (?, ?, ?)",
+            (client_name, week, adherence),
+        )
+        conn.commit()
+
+    return jsonify(
+        {
+            "status": "ok",
+            "progress": {
+                "client_name": client_name,
+                "week": week,
+                "adherence": adherence,
+            },
+        }
+    )
+
+
+init_db()
 
 
 if __name__ == "__main__":
