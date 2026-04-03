@@ -64,3 +64,12 @@ Application URL:
 ```bash
 docker stop aceest-fitness
 ```
+
+## GitHub Actions CI pipeline
+
+This repository includes a GitHub Actions workflow at `.github/workflows/main.yml`.
+It runs on every `push` and `pull_request` and performs:
+
+- **Build & Lint**: `python -m compileall -q .` (syntax compilation check)
+- **Docker Image Assembly**: `docker build` using the project `Dockerfile`
+- **Automated Testing**: `pytest` executed inside the built Docker container
