@@ -188,6 +188,61 @@
           flex: 1 1 100%;
         }
       }
+
+      .modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal-panel {
+        background: var(--bg-panel);
+        border-radius: 12px;
+        padding: 18px 20px 22px;
+        max-width: 560px;
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+
+      .modal-close {
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .modal-close:hover {
+        color: var(--text-light);
+      }
     </style>
   </head>
   <body>
@@ -284,6 +339,15 @@
               >
                 Save Progress
               </button>
+
+              <button
+                class="btn"
+                type="button"
+                id="view-progress-chart-btn"
+                style="margin-top: 10px; background: linear-gradient(135deg, #2980b9, #3498db);"
+              >
+                View Progress Chart
+              </button>
             </div>
 
             <div class="section-body placeholder" id="ui-status" style="margin-top: 14px;">
@@ -336,8 +400,21 @@ BREAK-EVEN: {{ site_metrics.break_even }}
         </article>
       </section>
     </main>
+
+    <div id="chart-modal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal-panel" role="dialog" aria-labelledby="chart-modal-title">
+        <div class="modal-header">
+          <h2 id="chart-modal-title">Weekly Adherence Progress</h2>
+          <button type="button" id="chart-modal-close" class="modal-close" aria-label="Close">
+            &times;
+          </button>
+        </div>
+        <canvas id="adherence-chart-canvas" height="220" width="480"></canvas>
+      </div>
+    </div>
   </body>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     const setStatus = (text) => {
       const el = document.getElementById("ui-status");
@@ -426,6 +503,100 @@ BREAK-EVEN: {{ site_metrics.break_even }}
       }
 
       setStatus(`Progress saved for ${payload.progress.week}.`);
+    });
+
+    let adherenceChart = null;
+
+    const closeChartModal = () => {
+      const modal = document.getElementById("chart-modal");
+      if (modal) {
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+    };
+
+    document.getElementById("chart-modal-close")?.addEventListener("click", closeChartModal);
+    document.getElementById("chart-modal")?.addEventListener("click", (e) => {
+      if (e.target && e.target.id === "chart-modal") closeChartModal();
+    });
+
+    document.getElementById("view-progress-chart-btn")?.addEventListener("click", async () => {
+      const name = (document.getElementById("client-name")?.value || "").trim();
+      if (!name) {
+        return setStatus("Enter client name first to view the progress chart.");
+      }
+
+      setStatus("Loading progress chart...");
+      const res = await fetch(`/api/client/${encodeURIComponent(name)}/progress`, {
+        method: "GET",
+      });
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok || payload.status !== "ok") {
+        return setStatus(payload?.message || "Could not load progress data.");
+      }
+
+      const series = payload.series || [];
+      if (series.length === 0) {
+        return setStatus("No progress data available for this client.");
+      }
+
+      const title = document.getElementById("chart-modal-title");
+      if (title) title.textContent = `Weekly Adherence Progress – ${name}`;
+
+      const modal = document.getElementById("chart-modal");
+      if (modal) {
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+      }
+
+      const canvas = document.getElementById("adherence-chart-canvas");
+      if (!canvas || typeof Chart === "undefined") {
+        return setStatus("Chart library failed to load.");
+      }
+
+      const ctx = canvas.getContext("2d");
+      if (adherenceChart) adherenceChart.destroy();
+
+      adherenceChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: series.map((s) => s.week),
+          datasets: [
+            {
+              label: "Adherence (%)",
+              data: series.map((s) => s.adherence),
+              borderColor: "#d4af37",
+              backgroundColor: "rgba(212, 175, 55, 0.15)",
+              tension: 0.25,
+              fill: true,
+              pointRadius: 4,
+              pointBackgroundColor: "#d4af37",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 0,
+              max: 100,
+              ticks: { color: "#dddddd" },
+              grid: { color: "rgba(255,255,255,0.08)" },
+            },
+            x: {
+              ticks: { color: "#dddddd", maxRotation: 45, minRotation: 45 },
+              grid: { color: "rgba(255,255,255,0.06)" },
+            },
+          },
+          plugins: {
+            legend: { labels: { color: "#f5f5f5" } },
+          },
+        },
+      });
+
+      setStatus("Progress chart ready.");
     });
   </script>
 </html>

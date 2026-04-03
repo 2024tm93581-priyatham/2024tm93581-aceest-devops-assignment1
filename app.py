@@ -62,6 +62,13 @@ SITE_METRICS = {
     "break_even": "250 Members",
 }
 
+# Calorie factors per program (Aceestver-2.2.1 setup_data parity)
+CALORIE_FACTORS = {
+    "Fat Loss (FL)": 22,
+    "Muscle Gain (MG)": 35,
+    "Beginner (BG)": 26,
+}
+
 
 def get_db_connection():
     conn = sqlite3.connect(app.config["DATABASE"])
@@ -143,8 +150,7 @@ def save_client():
             400,
         )
 
-    factors = {"Fat Loss (FL)": 22, "Muscle Gain (MG)": 35, "Beginner (BG)": 26}
-    calories = int(weight * factors[program])
+    calories = int(weight * CALORIE_FACTORS[program])
 
     with get_db_connection() as conn:
         conn.execute(
@@ -214,6 +220,33 @@ def save_progress():
                 "week": week,
                 "adherence": adherence,
             },
+        }
+    )
+
+
+@app.route("/api/client/<name>/progress", methods=["GET"])
+def get_client_progress(name):
+    """
+    Weekly adherence series for charting (Aceestver-2.2.1 show_progress_chart parity).
+    Rows ordered by id, matching Tkinter ORDER BY id.
+    """
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT week, adherence
+            FROM progress
+            WHERE client_name = ?
+            ORDER BY id
+            """,
+            (name,),
+        ).fetchall()
+
+    series = [{"week": r["week"], "adherence": r["adherence"]} for r in rows]
+    return jsonify(
+        {
+            "status": "ok",
+            "client_name": name,
+            "series": series,
         }
     )
 
