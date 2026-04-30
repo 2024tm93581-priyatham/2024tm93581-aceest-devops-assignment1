@@ -8,6 +8,9 @@ pipeline {
 
     environment {
         VENV_DIR = ".venv"
+        // SonarQube quality gate can take time on first runs or busy servers.
+        // This timeout also protects the pipeline if the SonarQube->Jenkins webhook isn't configured/reachable.
+        SONAR_QG_TIMEOUT_MIN = "30"
     }
 
     stages {
@@ -91,7 +94,7 @@ pipeline {
 
         stage('Quality Gate - SonarQube') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
+                timeout(time: env.SONAR_QG_TIMEOUT_MIN.toInteger(), unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
