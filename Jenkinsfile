@@ -107,9 +107,16 @@ pipeline {
         stage('Build & Push Docker Image (ACR)') {
             steps {
                 script {
-                    def gitSha = isUnix()
+                    def gitShaRaw = isUnix()
                         ? sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         : bat(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    // On Windows, `bat(returnStdout: true)` often includes the echoed command.
+                    // Keep only the last non-empty line (the actual SHA).
+                    def gitSha = gitShaRaw
+                        .split(/\r?\n/)
+                        .collect { it.trim() }
+                        .findAll { it }
+                        .last()
 
                     def imageTag = "1.0.${env.BUILD_NUMBER}-${gitSha}"
                     def imageFull = "${env.ACR_LOGIN_SERVER}/${env.IMAGE_NAME}:${imageTag}"
@@ -122,9 +129,10 @@ pipeline {
                         } else {
                             bat """
                                 @echo off
-                                echo %ACR_PASS% | docker login %ACR_LOGIN_SERVER% -u %ACR_USER% --password-stdin
-                                docker build -t ${imageFull} .
-                                docker push ${imageFull}
+                                setlocal EnableExtensions
+                                powershell -NoProfile -Command "\$env:ACR_PASS | docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USER --password-stdin"; if errorlevel 1 exit /b 1
+                                docker build -t ${imageFull} .; if errorlevel 1 exit /b 1
+                                docker push ${imageFull}; if errorlevel 1 exit /b 1
                             """
                         }
                     }
