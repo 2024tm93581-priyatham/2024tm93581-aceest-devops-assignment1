@@ -11,6 +11,10 @@ pipeline {
         // SonarQube quality gate can take time on first runs or busy servers.
         // This timeout also protects the pipeline if the SonarQube->Jenkins webhook isn't configured/reachable.
         SONAR_QG_TIMEOUT_MIN = "30"
+
+        // Docker artifact settings (ACR)
+        ACR_LOGIN_SERVER = "aceest2024tm93581acr.azurecr.io"
+        IMAGE_NAME = "aceest-fitness-app"
     }
 
     stages {
@@ -96,6 +100,36 @@ pipeline {
             steps {
                 timeout(time: env.SONAR_QG_TIMEOUT_MIN.toInteger(), unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Build & Push Docker Image (ACR)') {
+            steps {
+                script {
+                    def gitSha = isUnix()
+                        ? sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        : bat(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+
+                    def imageTag = "1.0.${env.BUILD_NUMBER}-${gitSha}"
+                    def imageFull = "${env.ACR_LOGIN_SERVER}/${env.IMAGE_NAME}:${imageTag}"
+
+                    withCredentials([usernamePassword(credentialsId: 'acr-credentials', usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+                        if (isUnix()) {
+                            sh 'echo "$ACR_PASS" | docker login "$ACR_LOGIN_SERVER" -u "$ACR_USER" --password-stdin'
+                            sh "docker build -t ${imageFull} ."
+                            sh "docker push ${imageFull}"
+                        } else {
+                            bat """
+                                @echo off
+                                echo %ACR_PASS% | docker login %ACR_LOGIN_SERVER% -u %ACR_USER% --password-stdin
+                                docker build -t ${imageFull} .
+                                docker push ${imageFull}
+                            """
+                        }
+                    }
+
+                    echo "Docker image pushed to ACR: ${imageFull}"
                 }
             }
         }
