@@ -70,6 +70,32 @@ pipeline {
                 }
             }
         }
+
+        stage('SonarQube Scan') {
+            steps {
+                script {
+                    // Requires Jenkins configuration:
+                    // 1) "Manage Jenkins" -> "System" -> "SonarQube servers" (name: SonarQube)
+                    // 2) "Manage Jenkins" -> "Tools" -> "SonarScanner installations" (name: SonarScanner)
+                    def scannerHome = tool 'SonarScanner'
+                    withSonarQubeEnv('SonarQube') {
+                        if (isUnix()) {
+                            sh "${scannerHome}/bin/sonar-scanner"
+                        } else {
+                            bat "\"${scannerHome}\\\\bin\\\\sonar-scanner.bat\""
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate - SonarQube') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
     }
 
     post {

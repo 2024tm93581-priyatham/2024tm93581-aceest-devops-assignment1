@@ -135,3 +135,45 @@ It runs on every `push` and `pull_request` and performs:
 
 - **Jenkins** handles a clean build + quality gate from GitHub checkout.
 - **GitHub Actions** enforces build, Docker assembly, and containerized tests on every push/PR.
+
+## Kubernetes (local) deployment using Minikube
+
+Prerequisites:
+
+- Minikube installed
+- kubectl installed
+- Docker installed
+
+### Start Minikube
+
+```powershell
+minikube start
+```
+
+### Build the Docker image inside Minikube
+
+This avoids pushing to any external registry (Minikube can use the locally built image).
+
+```powershell
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+docker build -t aceest-fitness-app:latest .
+```
+
+### Deploy to Kubernetes
+
+```powershell
+kubectl apply -f k8s/
+kubectl rollout status deployment/aceest-fitness
+```
+
+### Access the application
+
+```powershell
+minikube service aceest-fitness --url
+```
+
+### Clean up
+
+```powershell
+kubectl delete -f k8s/
+```
