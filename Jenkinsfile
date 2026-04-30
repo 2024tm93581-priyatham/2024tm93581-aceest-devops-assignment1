@@ -130,9 +130,12 @@ pipeline {
                             bat """
                                 @echo off
                                 setlocal EnableExtensions
-                                powershell -NoProfile -Command "\$env:ACR_PASS | docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USER --password-stdin"; if errorlevel 1 exit /b 1
-                                docker build -t ${imageFull} .; if errorlevel 1 exit /b 1
-                                docker push ${imageFull}; if errorlevel 1 exit /b 1
+                                powershell -NoProfile -Command "\$pass=\$env:ACR_PASS; \$pass | docker login \$env:ACR_LOGIN_SERVER -u \$env:ACR_USER --password-stdin"
+                                if errorlevel 1 exit /b 1
+                                docker build -t ${imageFull} .
+                                if errorlevel 1 exit /b 1
+                                docker push ${imageFull}
+                                if errorlevel 1 exit /b 1
                             """
                         }
                     }
